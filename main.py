@@ -1,155 +1,303 @@
-import pygame, sys, random
+import pygame
+import sys
+import random
 
-def ball_animation():
-    global ball_speed_x, ball_speed_y, player_score, opponent_score, score_time
-    ball.x += ball_speed_x
-    ball.y += ball_speed_y
 
-    if ball.top <= 0 or ball.bottom >= screen_height:
-        pygame.mixer.Sound.play(pong_sound)
-        ball_speed_y *= -1
+# classe base que será herdada pelas outras
+# é utilizada para carregar a imagem e criar
+# um retangulo ao redor dela, para que não sejá
+# necessário repetir a mesma coisa nas outras por
+# se tratar de elementos em comum
+class Block(pygame.sprite.Sprite):
+    def __init__(self, image_path, x_pos, y_pos):
+        super().__init__()
+        self.image = pygame.image.load(image_path)  # carrega o sprite
+        # desenha o retangulo em volta da imagem
+        self.rect = self.image.get_rect(center=(x_pos, y_pos))
 
-    if ball.left <= 0:
+
+class Player(Block):  # Classe que define a raquete e suas funções
+    def __init__(self, image_path, x_pos, y_pos, speed):
+        super().__init__(image_path, x_pos, y_pos)
+        self.speed = speed  # define a velocidade do jogador
+        self.movement = 0  # define a movimentação do jogador
+
+    # função para limitar até onde a raquete pode ir
+    def screen_constrain(self):
+        if self.rect.top <= 0:  # se a raquete chegou até o 'teto' da tela
+            self.rect.top = 0
+        if self.rect.bottom >= screen_height:  # se a raquete chegou até o 'chão' da tela
+            self.rect.bottom = screen_height
+
+    # função para atualizar a raquete
+    def update(self, ball_group):
+        self.rect.y += self.movement  # movimenta a raquete
+        self.screen_constrain()  # chama a função impor limite até onde pode ir
+
+
+class Ball(Block):  # classe que define a bola e sua funções
+    def __init__(self, image_path, x_pos, y_pos, speed_x, speed_y, paddles):
+        super().__init__(image_path, x_pos, y_pos)
+        # randomiza a direção inicial que a bola ira começar
+        self.speed_x = speed_x * random.choice((-1, 1))
+        self.speed_y = speed_y * random.choice((-1, 1))
+        self.paddles = paddles
+        self.active = False  # será usado para saber se a bola está movimentando
+        self.score_time = 0
+
+    # função para atualizar a bola
+    def update(self):
+        if self.active:  # se a bola está movimentando
+            # atualiza sua posição
+            self.rect.x += self.speed_x
+            self.rect.y += self.speed_y
+            self.collisions()  # chama a função de colisões
+        else:  # se não
+            self.restart_counter()  # reseta o contador
+
+    # função para definir as colisões da bola
+    def collisions(self):
+        if self.rect.top <= 0 or self.rect.bottom >= screen_height:
+            # toca o som de hit quando a bola toca na parte
+            # de cima ou de baixo da tela
+            pygame.mixer.Sound.play(hit_sound)
+            self.speed_y *= -1  # joga a bola para outra posição
+
+        # a função spritecollide é utilizada para fazer algo
+        # quando dois objetos colidem, no caso a colisão das
+        # raquetes (self.paddles) com a bola (self) e a terceiro
+        # parâmetro se refere a eliminar todos os elementos que colidiram
+        # com o elemento de referência se deixar como True, para False
+        # apenas retorna uma lista dos elementos que colidiram
+        if pygame.sprite.spritecollide(self, self.paddles, False):
+            # toca o som de hit
+            pygame.mixer.Sound.play(hit_sound)
+            # como retorna uma lista de elementos, é pego
+            # somente o primeiro elemento, que pode ser a raquete
+            # do jogador ou do oponente
+            collision_paddle = pygame.sprite.spritecollide(
+                self, self.paddles, False)[0].rect
+
+            # agora que sabemos qual raquete está ocorrendo
+            # a colisão, basta utilizar as condições a seguir
+            # para mudar a posição da bola
+            if abs(self.rect.right - collision_paddle.left) < 10 and self.speed_x > 0:
+                self.speed_x *= -1
+
+            if abs(self.rect.left - collision_paddle.right) < 10 and self.speed_x < 0:
+                self.speed_x *= -1
+
+            if abs(self.rect.top - collision_paddle.bottom) < 10 and self.speed_y < 0:
+                self.rect.top = collision_paddle.bottom
+                self.speed_y *= -1
+
+            if abs(self.rect.bottom - collision_paddle.top) < 10 and self.speed_y < 0:
+                self.rect.bottom = collision_paddle.top
+                self.speed_y *= -1
+
+    # função para resetar a bola sempre que algúem marca
+    # um ponto
+    def reset_ball(self):
+        self.active = False  # a bola não esta movimentando
+        # define de forma aleatória a direção que irá iniciar
+        self.speed_x *= random.choice((-1, 1))
+        self.speed_y *= random.choice((-1, 1))
+        # pega o tempo quando a bola foi resetada
+        self.score_time = pygame.time.get_ticks()
+        # joga a bola para o centro da tela
+        self.rect.center = (screen_width/2, screen_height/2)
+        # ativa um som quando a bola sai pra fora da tela
         pygame.mixer.Sound.play(score_sound)
-        player_score += 1
-        score_time = pygame.time.get_ticks();
 
-    if ball.right >= screen_width:
-        pygame.mixer.Sound.play(score_sound)
-        opponent_score += 1
-        score_time = pygame.time.get_ticks();
+    # função para resetar o contador, que é chamado sempre
+    # que alguém marca algum ponto, ou no inicio do jogo
+    def restart_counter(self):
+        current_time = pygame.time.get_ticks()  # pega o tempo atual
+        countdown_number = 3  # contador que será renderizado na tela
 
-    if ball.colliderect(player) and ball_speed_x > 0:
-        pygame.mixer.Sound.play(pong_sound)
-        if abs(ball.right - player.left) < 10:
-            ball_speed_x *= -1
-        elif abs(ball.bottom - player.top) < 10 and ball_speed_y > 0:
-            ball_speed_y *= -1
-        elif abs(ball.top - player.bottom) < 10 and ball_speed_y < 0:
-            ball_speed_y *= -1
-    
-    if ball.colliderect(opponent) and ball_speed_x < 0:
-        pygame.mixer.Sound.play(pong_sound)
-        if abs(ball.left - opponent.right) < 10:
-            ball_speed_x *= -1
-        elif abs(ball.bottom - opponent.top) < 10 and ball_speed_y > 0:
-            ball_speed_y *= -1
-        elif abs(ball.top - opponent.bottom) < 10 and ball_speed_y < 0:
-            ball_speed_y *= -1
-        
-def player_animation():
-    player.y += player_speed
-    if player.top <= 0:
-        player.top = 0
-    if player.bottom >= screen_height:
-        player.bottom = screen_height
+        # basicamente essas condições são utilizadas
+        # para contar 3 segundos antes da bola começar a se
+        # movimentar, além de renderizar na tela um contador
+        # para os jogadores saberem quando a bola voltar a se
+        # movimentar
+        if current_time - self.score_time <= 700:
+            countdown_number = 3
+        if 700 < current_time - self.score_time <= 1400:
+            countdown_number = 2
+        if 1400 < current_time - self.score_time <= 2100:
+            countdown_number = 1
+        if current_time - self.score_time >= 2100:
+            self.active = True
 
-def opponent_animation():
-    if opponent.top < ball.y:
-        opponent.top += opponent_speed
-    if opponent.bottom > ball.y:
-        opponent.bottom -= opponent_speed
-    if opponent.top <= 0:
-        opponent.top = 0
-    if opponent.bottom >= screen_height:
-        opponent.bottom = screen_height
+        # cria o texto que será renderizado
+        time_counter = basic_font.render(
+            str(countdown_number), True, accent_color)
+        # cria um retangulo em volta do texto e define sua posição na tela
+        time_counter_rect = time_counter.get_rect(
+            center=(screen_width/2, screen_height/2 + 50))
+        # desenha na tela o retangulo
+        pygame.draw.rect(screen, bg_color, time_counter_rect)
+        # coloca de fato na tela o contador
+        screen.blit(time_counter, time_counter_rect)
 
-def ball_restart():
-    global ball_speed_x, ball_speed_y, score_time
 
-    current_time = pygame.time.get_ticks()
-    ball.center = (screen_width/2, screen_height/2)
+class Opponent(Block):  # classe utilizada para o oponente e suas funções
+    def __init__(self, image_path, x_pos, y_pos, speed):
+        super().__init__(image_path, x_pos, y_pos)
+        self.speed = speed  # velocidade do oponente
 
-    if current_time - score_time < 700:
-        number_three = game_font.render("3", False, light_grey)
-        screen.blit(number_three, (screen_width/2 - 10, screen_height/2 + 20))
-    
-    if 700 < current_time - score_time < 1400:
-        number_three = game_font.render("2", False, light_grey)
-        screen.blit(number_three, (screen_width/2 - 10, screen_height/2 + 20))
-    
-    if 1400 < current_time - score_time < 1400:
-        number_three = game_font.render("1", False, light_grey)
-        screen.blit(number_three, (screen_width/2 - 10, screen_height/2 + 20))
+    # função para atualizar o oponente
+    def update(self, ball_group):
+        # é apenas um sistema de movimentação básico
+        # se a bola estiver em acima da raquete
+        # a raquete se move para cima
+        if self.rect.top < ball_group.sprite.rect.y:
+            self.rect.y += self.speed
+        # se a bola estiver abaixo
+        # a raquete se move para baixo
+        if self.rect.bottom > ball_group.sprite.rect.y:
+            self.rect.y -= self.speed
+        # mantendo os limites da tela pela função abaixo
+        self.constrain()
 
-    if current_time - score_time < 2100:
-        ball_speed_x, ball_speed_y = 0, 0
-    else: 
-        ball_speed_y = 7 * random.choice((1, -1))
-        ball_speed_x = 7 * random.choice((1, -1))
-        score_time = None
+    # função define o limite da raquete em relação a tela
+    # igual a do jogador
+    def constrain(self):
+        if self.rect.top <= 0:
+            self.rect.top = 0
+        if self.rect.bottom >= screen_height:
+            self.rect.bottom = screen_height
 
+
+class GameManager:  # classe para gerenciar o jogo
+    def __init__(self, ball_group, paddle_group):
+        self.player_score = 0
+        self.opponent_score = 0
+        self.ball_group = ball_group
+        self.paddle_group = paddle_group
+
+    def run_game(self):
+        # Desenha os objetos do jogo
+        self.paddle_group.draw(screen)
+        self.ball_group.draw(screen)
+
+        # Atualiza os objetos do jogo
+        self.paddle_group.update(self.ball_group)
+        self.ball_group.update()
+        self.reset_ball()
+        self.draw_score()
+
+    # função utilizada para verificar e chamar a função
+    # de resetar a bola quando ocorrer colisão nas laterais
+    def reset_ball(self):
+        if self.ball_group.sprite.rect.right >= screen_width:  # a bola saiu pela direita
+            self.opponent_score += 1  # aumenta o score o oponent
+            self.ball_group.sprite.reset_ball()  # reseta a bola
+        if self.ball_group.sprite.rect.left <= 0:  # a bola saiu pela esquerda
+            self.player_score += 1  # aumenta o score do jogador
+            self.ball_group.sprite.reset_ball()  # reseta a bola
+
+    # função para desenhar o score na tela
+    def draw_score(self):
+        # cria o texto para o score do jogador
+        # e do oponente
+        player_score = basic_font.render(
+            str(self.player_score), True, accent_color)
+        opponent_score = basic_font.render(
+            str(self.opponent_score), True, accent_color)
+
+        # cria um objeto ao redor do texto dos scores
+        # e também define a posição do texto
+        player_score_rect = player_score.get_rect(
+            midleft=(screen_width / 2 + 40, screen_height/2))
+        opponent_score_rect = opponent_score.get_rect(
+            midright=(screen_width/2 - 40, screen_height/2))
+
+        # coloca os scores na tela
+        screen.blit(player_score, player_score_rect)
+        screen.blit(opponent_score, opponent_score_rect)
+
+
+# General setup
 pygame.mixer.pre_init(44100, -16, 2, 512)
 pygame.init()
 clock = pygame.time.Clock()
 
-screen_width = 1280
-screen_height = 720
+# Janela principal
+screen_width = 1280  # largura
+screen_height = 720  # altura
+# cria a janela do jogo
 screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("Pong")
+pygame.display.set_caption("Pong")  # titulo
 
-ball = pygame.Rect(screen_width/2 - 15, screen_height/2 - 15, 30, 30)
-player = pygame.Rect(screen_width - 20, screen_height/2 - 70, 10, 140)
-opponent = pygame.Rect(10, screen_height/2-70, 10, 140)
-
-bg_color = pygame.Color("grey12")
-accent_color = (24, 35, 43)
-basic_font = pygame.font.Font("freesansbold.ttf", 32)
-pong_sound = pygame.mixer.Sound("sound/pong.wav")
-score_sound = pygame.mixer.Sound("sound/score.wav")
-light_grey = (200, 200, 200)
+# Variáveis globais
+bg_color = pygame.Color("#040F0F")  # code de fundo
+accent_color = (253, 255, 252)  # cor das letras e linha no meio
+basic_font = pygame.font.Font("freesansbold.ttf", 32)  # carrega a fonte
+hit_sound = pygame.mixer.Sound("sounds/pong.wav")  # carrega o som de hit
+score_sound = pygame.mixer.Sound("sounds/score.wav")  # carrega o som de score
+# cria uma linha que será desenhada no meio da tela
 middle_strip = pygame.Rect(screen_width/2 - 2, 0, 4, screen_height)
 
-ball_speed_x = 7 * random.choice((1, -1))
-ball_speed_y = 7 * random.choice((1, -1))
-player_speed = 0
-opponent_speed = 7
 
-# Variaveis de texto
-player_score = 0
-opponent_score = 0
-game_font = pygame.font.Font("freesansbold.ttf", 32)
+# Objetos do jogo
+# instância as classes de player e opponent
+player = Player("images/Paddle.png", screen_width - 20, screen_height/2, 5)
+opponent = Opponent("images/Paddle.png", 20, screen_height/2, 5)
 
-# Score Timer
-score_time = True
+# os objetos player e opponent são adicionados a um sprite group
+# para que todos sejam renderizados ao mesmo tempo na tela ou atualizados
+# assim não existe a necessidade de fazer um por um
+paddle_group = pygame.sprite.Group()
+paddle_group.add(player)
+paddle_group.add(opponent)
 
+# O mesmo que foi feito para o player e opponent é feito para a bola (ball)
+ball = Ball("images/Ball.png", screen_width/2,
+            screen_height/2, 4, 4, paddle_group)
+ball_sprite = pygame.sprite.GroupSingle()
+ball_sprite.add(ball)
+
+# instancia a classe GameManager, para ser usada no loop do jogo
+game_manager = GameManager(ball_sprite, paddle_group)
+
+# loop principal do jogo
 while True:
+    # checa os eventos do teclado e mouse
     for event in pygame.event.get():
-
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_DOWN:
-                player_speed = 7
-            if event.key == pygame.K_UP:
-                player_speed = -7
-        
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_DOWN:
-                player_speed = 0
-            if event.key == pygame.K_UP:
-                player_speed = 0
-
+        # se clicou no X da tela
         if event.type == pygame.QUIT:
+            # sai do jogo
             pygame.quit()
             sys.exit()
+        # se apertou alguma tecla
+        if event.type == pygame.KEYDOWN:
+            # apertou a tecla para cima
+            if event.key == pygame.K_UP:
+                # move o jogador para cima
+                player.movement -= player.speed
+            # apertou a tecla para baixo
+            if event.key == pygame.K_DOWN:
+                # move o jogador para baixo
+                player.movement += player.speed
 
-    ball_animation()
-    player_animation()
-    opponent_animation()
+        # se soltou alguma tecla
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_UP:
+                # reseta o movimento do jogador para 0
+                player.movement += player.speed
+            if event.key == pygame.K_DOWN:
+                # reseta o movimento do jogador para 0
+                player.movement -= player.speed
 
+    # Desenha a tela de fundo
     screen.fill(bg_color)
-    pygame.draw.rect(screen, light_grey, player);
-    pygame.draw.rect(screen, light_grey, opponent);
-    pygame.draw.ellipse(screen, light_grey, ball);
-    pygame.draw.aaline(screen, light_grey, (screen_width/2,0), (screen_width/2, screen_height))
+    pygame.draw.rect(screen, accent_color, middle_strip)
 
-    if score_time:
-        ball_restart()
+    # Cuida da renderização e alteração dos objetos do jogo
+    game_manager.run_game()
 
-    player_text = game_font.render(f"{player_score}", False, light_grey)
-    screen.blit(player_text, (660, 350))
-
-    opponent_text = game_font.render(f"{opponent_score}", False, light_grey)
-    screen.blit(opponent_text, (600, 350))
-
+    # Atualiza todo o conteúdo da tela
     pygame.display.flip()
-    clock.tick(60)
+    # define a velocidade do jogo
+    clock.tick(120)
