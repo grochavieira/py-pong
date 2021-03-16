@@ -254,6 +254,31 @@ class Button(pygame.sprite.Sprite):
         self.image = self.sprites[int(self.current_sprite)]
 
 
+class Text(pygame.sprite.Sprite):
+    def __init__(self, base_images_path, number_of_images, sprite_velocity, pos_x, pos_y):
+        super().__init__()
+        self.sprites = []
+        self.sprite_velocity = sprite_velocity
+
+        for i in range(number_of_images):
+            image_path = base_images_path + str(i + 1) + ".png"
+            self.sprites.append(pygame.image.load(image_path))
+
+        self.current_sprite = 0
+        self.image = self.sprites[self.current_sprite]
+
+        self.rect = self.image.get_rect()
+        self.rect.topleft = [pos_x, pos_y]
+
+    def update(self):
+        self.current_sprite += self.sprite_velocity
+
+        if self.current_sprite >= len(self.sprites):
+            self.current_sprite = 0
+
+        self.image = self.sprites[int(self.current_sprite)]
+
+
 # General setup
 pygame.mixer.pre_init(44100, -16, 2, 512)
 pygame.init()
@@ -272,6 +297,8 @@ accent_color = (253, 255, 252)  # cor das letras e linha no meio
 basic_font = pygame.font.Font("freesansbold.ttf", 32)  # carrega a fonte
 hit_sound = pygame.mixer.Sound("sounds/pong.wav")  # carrega o som de hit
 score_sound = pygame.mixer.Sound("sounds/score.wav")  # carrega o som de score
+button_sound = pygame.mixer.Sound(
+    "sounds/button.wav")  # carrega o som de botão
 # cria uma linha que será desenhada no meio da tela
 middle_strip = pygame.Rect(screen_width/2 - 2, 0, 4, screen_height)
 
@@ -296,13 +323,20 @@ ball_sprite.add(ball)
 
 # botão iniciar o single player
 singleplayer_button = Button(
-    "images/btn_sp/btn_sp", 10, screen_width/2 - 300, 300)
+    "images/btn_sp/btn_sp", 10, screen_width/2 - 300, 400)
 # botão para iniciar o multiplayer
 multiplayer_button = Button("images/btn_mp/btn_mp",
-                            10, screen_width/2 - 300, 500)
+                            10, screen_width/2 - 300, 550)
 button_group = pygame.sprite.Group()
 button_group.add(singleplayer_button)
 button_group.add(multiplayer_button)
+
+# titulo e texto de informação do jogo
+title = Text("images/title/title", 12, 0.07, screen_width/2 - 770, 0)
+info = Text("images/info/info", 2, 0.02, screen_width/2 - 410, 250)
+text_group = pygame.sprite.Group()
+text_group.add(title)
+text_group.add(info)
 
 # mouse element
 mouse = Mouse()
@@ -325,22 +359,25 @@ def main_menu():  # menu principal do jogo
                     collision_button = pygame.sprite.spritecollide(
                         mouse, button_group, False)[0].rect
 
-                    if collision_button.bottom >= 500:
+                    if collision_button.bottom >= 550:
+                        button_sound.play()
                         multiplayer_game()
-                    elif collision_button.bottom >= 300:
+                    elif collision_button.bottom >= 350:
+                        button_sound.play()
                         singleplayer_game()
 
         button_group.draw(screen)
         mouse_group.draw(screen)
+        text_group.draw(screen)
         button_group.update()
         mouse_group.update()
+        text_group.update()
         pygame.display.update()
         clock.tick(120)
 
 
 def singleplayer_game():
     ball.reset_ball(True)
-
     # instancia a classe GameManager, para ser usada no loop do jogo
     game_manager = GameManager(ball_sprite, singleplayer_paddle_group)
     running = True
