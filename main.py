@@ -218,6 +218,30 @@ class GameManager:  # classe para gerenciar o jogo
         screen.blit(opponent_score, opponent_score_rect)
 
 
+class Button(pygame.sprite.Sprite):
+    def __init__(self, base_images_path, number_of_images, pos_x, pos_y):
+        super().__init__()
+        self.sprites = []
+
+        for i in range(number_of_images):
+            image_path = base_images_path + str(i + 1) + ".png"
+            self.sprites.append(pygame.image.load(image_path))
+
+        self.current_sprite = 0
+        self.image = self.sprites[self.current_sprite]
+
+        self.rect = self.image.get_rect()
+        self.rect.topleft = [pos_x, pos_y]
+
+    def update(self):
+        self.current_sprite += 0.07
+
+        if self.current_sprite >= len(self.sprites):
+            self.current_sprite = 0
+
+        self.image = self.sprites[int(self.current_sprite)]
+
+
 # General setup
 pygame.mixer.pre_init(44100, -16, 2, 512)
 pygame.init()
@@ -261,43 +285,90 @@ ball_sprite.add(ball)
 # instancia a classe GameManager, para ser usada no loop do jogo
 game_manager = GameManager(ball_sprite, paddle_group)
 
-# loop principal do jogo
-while True:
-    # checa os eventos do teclado e mouse
-    for event in pygame.event.get():
-        # se clicou no X da tela
-        if event.type == pygame.QUIT:
-            # sai do jogo
-            pygame.quit()
-            sys.exit()
-        # se apertou alguma tecla
-        if event.type == pygame.KEYDOWN:
-            # apertou a tecla para cima
-            if event.key == pygame.K_UP:
-                # move o jogador para cima
-                player.movement -= player.speed
-            # apertou a tecla para baixo
-            if event.key == pygame.K_DOWN:
-                # move o jogador para baixo
-                player.movement += player.speed
+# botão single player
+moving_sprites = pygame.sprite.Group()
+single_player_button = Button(
+    "images/btn_sp/btn_sp", 10, screen_width/2 - 300, 300)
+multiplayer_button = Button("images/btn_mp/btn_mp",
+                            10, screen_width/2 - 300, 500)
+moving_sprites.add(single_player_button)
+moving_sprites.add(multiplayer_button)
 
-        # se soltou alguma tecla
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_UP:
-                # reseta o movimento do jogador para 0
-                player.movement += player.speed
-            if event.key == pygame.K_DOWN:
-                # reseta o movimento do jogador para 0
-                player.movement -= player.speed
 
-    # Desenha a tela de fundo
-    screen.fill(bg_color)
-    pygame.draw.rect(screen, accent_color, middle_strip)
+def main_menu():  # menu principal do jogo
+    while True:
 
-    # Cuida da renderização e alteração dos objetos do jogo
-    game_manager.run_game()
+        screen.fill(bg_color)
 
-    # Atualiza todo o conteúdo da tela
-    pygame.display.flip()
-    # define a velocidade do jogo
-    clock.tick(120)
+        mx, my = pygame.mouse.get_pos()
+
+        # if btn_single_player.collidepoint((mx, my)):
+        #     if click:
+        #         single_player_game()
+
+        # if btn_multiplayer.collidepoint((mx, my)):
+        #     if click:
+        #         single_player_game()
+
+        click = False
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    click = True
+
+        moving_sprites.draw(screen)
+        moving_sprites.update()
+        pygame.display.update()
+        clock.tick(120)
+
+
+def single_player_game():
+    running = True
+    while running:
+        # checa os eventos do teclado e mouse
+        for event in pygame.event.get():
+            # se clicou no X da tela
+            if event.type == pygame.QUIT:
+                # sai do jogo
+                pygame.quit()
+                sys.exit()
+            # se apertou alguma tecla
+            if event.type == pygame.KEYDOWN:
+                # apertou a tecla para cima
+                if event.key == pygame.K_UP:
+                    # move o jogador para cima
+                    player.movement -= player.speed
+                # apertou a tecla para baixo
+                if event.key == pygame.K_DOWN:
+                    # move o jogador para baixo
+                    player.movement += player.speed
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+
+            # se soltou alguma tecla
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_UP:
+                    # reseta o movimento do jogador para 0
+                    player.movement += player.speed
+                if event.key == pygame.K_DOWN:
+                    # reseta o movimento do jogador para 0
+                    player.movement -= player.speed
+
+        # Desenha a tela de fundo
+        screen.fill(bg_color)
+        pygame.draw.rect(screen, accent_color, middle_strip)
+
+        # Cuida da renderização e alteração dos objetos do jogo
+        game_manager.run_game()
+
+        # Atualiza todo o conteúdo da tela
+        pygame.display.flip()
+        # define a velocidade do jogo
+        clock.tick(120)
+
+
+main_menu()
