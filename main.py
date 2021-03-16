@@ -97,7 +97,7 @@ class Ball(Block):  # classe que define a bola e sua funções
 
     # função para resetar a bola sempre que algúem marca
     # um ponto
-    def reset_ball(self):
+    def reset_ball(self, start_game):
         self.active = False  # a bola não esta movimentando
         # define de forma aleatória a direção que irá iniciar
         self.speed_x *= random.choice((-1, 1))
@@ -107,7 +107,8 @@ class Ball(Block):  # classe que define a bola e sua funções
         # joga a bola para o centro da tela
         self.rect.center = (screen_width/2, screen_height/2)
         # ativa um som quando a bola sai pra fora da tela
-        pygame.mixer.Sound.play(score_sound)
+        if(not start_game):
+            pygame.mixer.Sound.play(score_sound)
 
     # função para resetar o contador, que é chamado sempre
     # que alguém marca algum ponto, ou no inicio do jogo
@@ -192,10 +193,10 @@ class GameManager:  # classe para gerenciar o jogo
     def reset_ball(self):
         if self.ball_group.sprite.rect.right >= screen_width:  # a bola saiu pela direita
             self.opponent_score += 1  # aumenta o score o oponent
-            self.ball_group.sprite.reset_ball()  # reseta a bola
+            self.ball_group.sprite.reset_ball(False)  # reseta a bola
         if self.ball_group.sprite.rect.left <= 0:  # a bola saiu pela esquerda
             self.player_score += 1  # aumenta o score do jogador
-            self.ball_group.sprite.reset_ball()  # reseta a bola
+            self.ball_group.sprite.reset_ball(False)  # reseta a bola
 
     # função para desenhar o score na tela
     def draw_score(self):
@@ -216,6 +217,17 @@ class GameManager:  # classe para gerenciar o jogo
         # coloca os scores na tela
         screen.blit(player_score, player_score_rect)
         screen.blit(opponent_score, opponent_score_rect)
+
+
+class Mouse(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface([1, 1])
+        self.image.fill((255, 255, 255))
+        self.rect = self.image.get_rect()
+
+    def update(self):
+        self.rect.center = pygame.mouse.get_pos()
 
 
 class Button(pygame.sprite.Sprite):
@@ -272,27 +284,30 @@ opponent = Opponent("images/Paddle.png", 20, screen_height/2, 5)
 # os objetos player e opponent são adicionados a um sprite group
 # para que todos sejam renderizados ao mesmo tempo na tela ou atualizados
 # assim não existe a necessidade de fazer um por um
-paddle_group = pygame.sprite.Group()
-paddle_group.add(player)
-paddle_group.add(opponent)
+singleplayer_paddle_group = pygame.sprite.Group()
+singleplayer_paddle_group.add(player)
+singleplayer_paddle_group.add(opponent)
 
 # O mesmo que foi feito para o player e opponent é feito para a bola (ball)
 ball = Ball("images/Ball.png", screen_width/2,
-            screen_height/2, 4, 4, paddle_group)
+            screen_height/2, 4, 4, singleplayer_paddle_group)
 ball_sprite = pygame.sprite.GroupSingle()
 ball_sprite.add(ball)
 
-# instancia a classe GameManager, para ser usada no loop do jogo
-game_manager = GameManager(ball_sprite, paddle_group)
-
-# botão single player
-moving_sprites = pygame.sprite.Group()
-single_player_button = Button(
+# botão iniciar o single player
+singleplayer_button = Button(
     "images/btn_sp/btn_sp", 10, screen_width/2 - 300, 300)
+# botão para iniciar o multiplayer
 multiplayer_button = Button("images/btn_mp/btn_mp",
                             10, screen_width/2 - 300, 500)
-moving_sprites.add(single_player_button)
-moving_sprites.add(multiplayer_button)
+button_group = pygame.sprite.Group()
+button_group.add(singleplayer_button)
+button_group.add(multiplayer_button)
+
+# mouse element
+mouse = Mouse()
+mouse_group = pygame.sprite.Group()
+mouse_group.add(mouse)
 
 
 def main_menu():  # menu principal do jogo
@@ -300,33 +315,34 @@ def main_menu():  # menu principal do jogo
 
         screen.fill(bg_color)
 
-        mx, my = pygame.mouse.get_pos()
-
-        # if btn_single_player.collidepoint((mx, my)):
-        #     if click:
-        #         single_player_game()
-
-        # if btn_multiplayer.collidepoint((mx, my)):
-        #     if click:
-        #         single_player_game()
-
-        click = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    click = True
+                if pygame.sprite.spritecollide(mouse, button_group, False):
+                    collision_button = pygame.sprite.spritecollide(
+                        mouse, button_group, False)[0].rect
 
-        moving_sprites.draw(screen)
-        moving_sprites.update()
+                    if collision_button.bottom >= 500:
+                        multiplayer_game()
+                    elif collision_button.bottom >= 300:
+                        singleplayer_game()
+
+        button_group.draw(screen)
+        mouse_group.draw(screen)
+        button_group.update()
+        mouse_group.update()
         pygame.display.update()
         clock.tick(120)
 
 
-def single_player_game():
+def singleplayer_game():
+    ball.reset_ball(True)
+
+    # instancia a classe GameManager, para ser usada no loop do jogo
+    game_manager = GameManager(ball_sprite, singleplayer_paddle_group)
     running = True
     while running:
         # checa os eventos do teclado e mouse
@@ -364,6 +380,85 @@ def single_player_game():
 
         # Cuida da renderização e alteração dos objetos do jogo
         game_manager.run_game()
+
+        # Atualiza todo o conteúdo da tela
+        pygame.display.flip()
+        # define a velocidade do jogo
+        clock.tick(120)
+
+
+def multiplayer_game():
+    # Objetos do jogo
+    # instância as classes de player1 e player2
+    player1 = Player("images/Paddle.png",
+                     screen_width - 20, screen_height/2, 5)
+    player2 = Player("images/Paddle.png", 20, screen_height/2, 5)
+
+    multiplayer_paddle_group = pygame.sprite.Group()
+    multiplayer_paddle_group.add(player1)
+    multiplayer_paddle_group.add(player2)
+
+    # O mesmo que foi feito para o player e opponent é feito para a bola (ball)
+    ball = Ball("images/Ball.png", screen_width/2,
+                screen_height/2, 4, 4, multiplayer_paddle_group)
+    ball_sprite = pygame.sprite.GroupSingle()
+    ball_sprite.add(ball)
+
+    ball.reset_ball(True)
+
+    # instancia a classe GameManager, para ser usada no loop do jogo
+    multiplayer_game_manager = GameManager(
+        ball_sprite, multiplayer_paddle_group)
+    running = True
+    while running:
+        # checa os eventos do teclado e mouse
+        for event in pygame.event.get():
+            # se clicou no X da tela
+            if event.type == pygame.QUIT:
+                # sai do jogo
+                pygame.quit()
+                sys.exit()
+            # se apertou alguma tecla
+            if event.type == pygame.KEYDOWN:
+                # apertou a tecla para cima
+                if event.key == pygame.K_UP:
+                    # move o jogador para cima
+                    player1.movement -= player1.speed
+                # apertou a tecla para baixo
+                if event.key == pygame.K_DOWN:
+                    # move o jogador para baixo
+                    player1.movement += player1.speed
+
+                if event.key == pygame.K_w:
+                    player2.movement -= player2.speed
+
+                if event.key == pygame.K_s:
+                    player2.movement += player2.speed
+
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+
+            # se soltou alguma tecla
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_UP:
+                    # reseta o movimento do jogador para 0
+                    player1.movement += player1.speed
+                if event.key == pygame.K_DOWN:
+                    # reseta o movimento do jogador para 0
+                    player1.movement -= player1.speed
+
+                if event.key == pygame.K_w:
+                    player2.movement += player2.speed
+
+                if event.key == pygame.K_s:
+                    player2.movement -= player2.speed
+
+        # Desenha a tela de fundo
+        screen.fill(bg_color)
+        pygame.draw.rect(screen, accent_color, middle_strip)
+
+        # Cuida da renderização e alteração dos objetos do jogo
+        multiplayer_game_manager.run_game()
 
         # Atualiza todo o conteúdo da tela
         pygame.display.flip()
