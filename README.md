@@ -100,7 +100,7 @@ $ git clone https://github.com/grochavieira/py-pong.git
 # Acesse a pasta do projeto no seu terminal/cmd
 $ cd py-pong
 
-# Acesse a pasta do projeto no seu terminal/cmd
+# Acesse a pasta game
 $ cd game
 
 # Execute a aplicação
