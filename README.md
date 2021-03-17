@@ -65,19 +65,19 @@ Um jogo de pong feito em python para a matéria de Desenvolvimento de Jogos do 7
 ### Menu
 
 <div align="center">
-    <img width="100%" src="./assets/pong_screen.PNG" />
+    <img width="100%" src="./assets/pong_screen.gif" />
 </div>
 
 ### Jogo Single Player
 
 <div align="center">
-    <img width="100%" src="./assets/singleplayer_screen.PNG" />
+    <img width="100%" src="./assets/singleplayer_screen.png" />
 </div>
 
 ### Jogo Multiplayer
 
 <div align="center">
-    <img width="100%" src="./assets/multiplayer_screen.PNG" />
+    <img width="100%" src="./assets/multiplayer_screen.png" />
 </div>
 
 ---
