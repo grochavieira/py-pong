@@ -266,7 +266,7 @@ class Mouse(pygame.sprite.Sprite):
         self.rect.center = pygame.mouse.get_pos()
 
 
-class Button(pygame.sprite.Sprite):
+class Button(pygame.sprite.Sprite):  # classe utilizada para desenhar os botões
     def __init__(self, base_images_path, number_of_images, pos_x, pos_y):
         super().__init__()
         self.sprites = []
@@ -290,7 +290,7 @@ class Button(pygame.sprite.Sprite):
         self.image = self.sprites[int(self.current_sprite)]
 
 
-class Text(pygame.sprite.Sprite):
+class Text(pygame.sprite.Sprite):  # classe utilizada para desenhar os texto com animações
     def __init__(self, base_images_path, number_of_images, sprite_velocity, pos_x, pos_y):
         super().__init__()
         self.sprites = []
