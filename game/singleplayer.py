@@ -79,7 +79,7 @@ def start_game():
         if current_time - game_start_time >= 3500:
             game_start_time = current_time
             new_block = engine.Block("images/Block.png",
-                                     random.randrange(50, settings.screen_width - 50), random.randrange(50, settings.screen_height - 50))
+                                     random.randrange(100, settings.screen_width - 100), random.randrange(100, settings.screen_height - 100))
             singleplayer_block_group.add(new_block)
 
         if previous_player_score < singleplayer_game_manager.player_score:

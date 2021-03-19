@@ -71,18 +71,31 @@ class Ball(Block):  # classe que define a bola e sua funções
         # condicionais utilizadas para os blocos que aparecem na tela
         if pygame.sprite.spritecollide(self, self.blocks, False):
             collision_block = pygame.sprite.spritecollide(
-                self, self.blocks, True)
-            len(collision_block)
+                self, self.blocks, True)[0].rect
+
+            increase_speed_x = 0
+            increase_speed_y = 0
+
             pygame.mixer.Sound.play(settings.destroy_sound)
-            if self.initial_speed_x * 2 < self.speed_x:
-                self.speed_x *= -1
-            else:
-                self.speed_x *= -1.01
+            if self.initial_speed_x * 2 > self.speed_x:
+                increase_speed_x = -0.02
 
             if self.initial_speed_y * 2 < self.speed_y:
-                self.speed_y *= -1
-            else:
-                self.speed_y *= -1.05
+                increase_speed_y = -0.02
+
+            if abs(self.rect.right - collision_block.left) < 10 and self.speed_x > 0:
+                self.speed_x *= (-1 + increase_speed_x)
+
+            if abs(self.rect.left - collision_block.right) < 10 and self.speed_x < 0:
+                self.speed_x *= (-1 + increase_speed_x)
+
+            if abs(self.rect.top - collision_block.bottom) < 10 and self.speed_y < 0:
+                self.rect.top = collision_block.bottom
+                self.speed_y *= (-1 + increase_speed_y)
+
+            if abs(self.rect.bottom - collision_block.top) < 10 and self.speed_y > 0:
+                self.rect.bottom = collision_block.top
+                self.speed_y *= (-1 + increase_speed_y)
 
         # a função spritecollide é utilizada para fazer algo
         # quando dois objetos colidem, no caso a colisão das
@@ -112,7 +125,7 @@ class Ball(Block):  # classe que define a bola e sua funções
                 self.rect.top = collision_paddle.bottom
                 self.speed_y *= -1
 
-            if abs(self.rect.bottom - collision_paddle.top) < 10 and self.speed_y < 0:
+            if abs(self.rect.bottom - collision_paddle.top) < 10 and self.speed_y > 0:
                 self.rect.bottom = collision_paddle.top
                 self.speed_y *= -1
 
